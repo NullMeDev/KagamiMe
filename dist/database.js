@@ -252,6 +252,103 @@ class Database {
             });
         });
     }
+    async articleExists(url) {
+        return new Promise((resolve, reject) => {
+            this.db.get('SELECT id FROM articles WHERE url = ?', [url], (err, row) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve(!!row);
+            });
+        });
+    }
+    async addRSSFeed(feedData) {
+        return new Promise((resolve, reject) => {
+            this.db.run(`INSERT INTO rss_feeds (name, url, category, fetch_interval_minutes, is_active)
+                 VALUES (?, ?, ?, ?, TRUE)`, [
+                feedData.name,
+                feedData.url,
+                feedData.category || 'general',
+                feedData.fetchInterval || 30
+            ], function (err) {
+                if (err)
+                    reject(err);
+                else
+                    resolve(this.lastID);
+            });
+        });
+    }
+    async removeRSSFeed(feedId) {
+        return new Promise((resolve, reject) => {
+            this.db.run('DELETE FROM rss_feeds WHERE id = ?', [feedId], (err) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve();
+            });
+        });
+    }
+    async toggleRSSFeed(feedId, isActive) {
+        return new Promise((resolve, reject) => {
+            this.db.run('UPDATE rss_feeds SET is_active = ? WHERE id = ?', [isActive, feedId], (err) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve();
+            });
+        });
+    }
+    async getAllRSSFeeds() {
+        return new Promise((resolve, reject) => {
+            this.db.all('SELECT * FROM rss_feeds ORDER BY name', (err, rows) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve(rows);
+            });
+        });
+    }
+    async updateRSSFeedInterval(feedId, intervalMinutes) {
+        return new Promise((resolve, reject) => {
+            this.db.run('UPDATE rss_feeds SET fetch_interval_minutes = ? WHERE id = ?', [intervalMinutes, feedId], (err) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve();
+            });
+        });
+    }
+    // Generic database methods for settings and other uses
+    async run(sql, params = []) {
+        return new Promise((resolve, reject) => {
+            this.db.run(sql, params, function (err) {
+                if (err)
+                    reject(err);
+                else
+                    resolve({ lastID: this.lastID, changes: this.changes });
+            });
+        });
+    }
+    async all(sql, params = []) {
+        return new Promise((resolve, reject) => {
+            this.db.all(sql, params, (err, rows) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve(rows);
+            });
+        });
+    }
+    async get(sql, params = []) {
+        return new Promise((resolve, reject) => {
+            this.db.get(sql, params, (err, row) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve(row);
+            });
+        });
+    }
 }
 exports.Database = Database;
 //# sourceMappingURL=database.js.map

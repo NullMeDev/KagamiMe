@@ -56,5 +56,22 @@ export declare class Database {
     getTopRSSItems(limit?: number): Promise<any[]>;
     searchRSSItems(query: string, limit?: number): Promise<any[]>;
     close(): Promise<void>;
+    articleExists(url: string): Promise<boolean>;
+    addRSSFeed(feedData: {
+        name: string;
+        url: string;
+        category?: string;
+        fetchInterval?: number;
+    }): Promise<number>;
+    removeRSSFeed(feedId: number): Promise<void>;
+    toggleRSSFeed(feedId: number, isActive: boolean): Promise<void>;
+    getAllRSSFeeds(): Promise<any[]>;
+    updateRSSFeedInterval(feedId: number, intervalMinutes: number): Promise<void>;
+    run(sql: string, params?: any[]): Promise<{
+        lastID: number;
+        changes: number;
+    }>;
+    all(sql: string, params?: any[]): Promise<any[]>;
+    get(sql: string, params?: any[]): Promise<any>;
 }
 //# sourceMappingURL=database.d.ts.map

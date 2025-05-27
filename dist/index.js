@@ -8,6 +8,10 @@ const discord_js_1 = require("discord.js");
 const dotenv_1 = __importDefault(require("dotenv"));
 const database_1 = require("./database");
 const rssFetcher_1 = require("./utils/rssFetcher");
+const articleFetcher_1 = require("./utils/articleFetcher");
+const adminCommands_1 = require("./utils/adminCommands");
+const settingsManager_1 = require("./utils/settingsManager");
+const serverCommands_1 = require("./utils/serverCommands");
 const openai_1 = __importDefault(require("openai"));
 const node_cron_1 = __importDefault(require("node-cron"));
 // Load environment variables
@@ -17,10 +21,14 @@ const openai = new openai_1.default({
     apiKey: process.env.OPENAI_API_KEY
 });
 exports.openai = openai;
-// Initialize database and RSS fetcher
+// Initialize database and utilities
 const db = new database_1.Database(process.env.DATABASE_PATH);
 exports.db = db;
+const settingsManager = new settingsManager_1.SettingsManager(db);
 const rssFetcher = new rssFetcher_1.RSSFetcher(db);
+const articleFetcher = new articleFetcher_1.ArticleFetcher(db);
+const adminCommands = new adminCommands_1.AdminCommands(db, rssFetcher, articleFetcher, settingsManager);
+const serverCommands = new serverCommands_1.ServerCommands(db);
 // Create Discord client
 const client = new discord_js_1.Client({
     intents: [
@@ -35,8 +43,9 @@ client.once(discord_js_1.Events.ClientReady, async (readyClient) => {
     console.log(`🔥 KagamiMe is ready! Logged in as ${readyClient.user.tag}`);
     try {
         await db.initialize();
+        await settingsManager.initialize();
         await db.logEvent('bot_startup', { user: readyClient.user.tag });
-        console.log('✅ Database initialized and startup logged');
+        console.log('✅ Database and settings initialized, startup logged');
         // Start RSS fetching cron job
         startRSSCronJob();
         startDailyDigestCronJob();
@@ -64,6 +73,12 @@ client.on(discord_js_1.Events.MessageCreate, async (message) => {
         switch (command) {
             case 'kagami':
                 await handleKagamiCommand(message, args);
+                break;
+            case 'admin':
+                await adminCommands.handleAdminCommand(message, args);
+                break;
+            case 'server':
+                await serverCommands.handleServerCommand(message, args);
                 break;
             case 'status':
                 await handleStatusCommand(message);
@@ -277,6 +292,15 @@ function startRSSCronJob() {
     const cronPattern = `*/${interval} * * * *`; // Every X minutes
     node_cron_1.default.schedule(cronPattern, async () => {
         console.log('⏰ RSS cron job triggered');
+        // Check if RSS is enabled and not in maintenance mode
+        if (!await settingsManager.getSetting('rss_enabled')) {
+            console.log('🔇 RSS fetching is muted, skipping...');
+            return;
+        }
+        if (serverCommands.isInMaintenanceMode()) {
+            console.log('🔧 Maintenance mode active, skipping RSS fetch...');
+            return;
+        }
         try {
             const results = await rssFetcher.fetchAllFeeds();
             console.log(`📊 RSS fetch results: ${results.success} successful, ${results.errors.length} errors`);
@@ -295,6 +319,15 @@ function startDailyDigestCronJob() {
     const cronPattern = `${minute} ${hour} * * *`; // Daily at specified time
     node_cron_1.default.schedule(cronPattern, async () => {
         console.log('📰 Daily digest triggered');
+        // Check if digest is enabled and not in maintenance mode
+        if (!await settingsManager.getSetting('digest_enabled')) {
+            console.log('🔇 Daily digest is muted, skipping...');
+            return;
+        }
+        if (serverCommands.isInMaintenanceMode()) {
+            console.log('🔧 Maintenance mode active, skipping daily digest...');
+            return;
+        }
         try {
             await sendDailyDigest();
         }
