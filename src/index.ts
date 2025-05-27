@@ -5,6 +5,7 @@ import { RSSFetcher } from './utils/rssFetcher';
 import { ArticleFetcher } from './utils/articleFetcher';
 import { AdminCommands } from './utils/adminCommands';
 import { SettingsManager } from './utils/settingsManager';
+import { ServerCommands } from './utils/serverCommands';
 import OpenAI from 'openai';
 import cron from 'node-cron';
 
@@ -22,6 +23,7 @@ const settingsManager = new SettingsManager(db);
 const rssFetcher = new RSSFetcher(db);
 const articleFetcher = new ArticleFetcher(db);
 const adminCommands = new AdminCommands(db, rssFetcher, articleFetcher, settingsManager);
+const serverCommands = new ServerCommands(db);
 
 // Create Discord client
 const client = new Client({
@@ -74,6 +76,9 @@ client.on(Events.MessageCreate, async (message: Message) => {
                 break;
             case 'admin':
                 await adminCommands.handleAdminCommand(message, args);
+                break;
+            case 'server':
+                await serverCommands.handleServerCommand(message, args);
                 break;
             case 'status':
                 await handleStatusCommand(message);
@@ -309,9 +314,14 @@ function startRSSCronJob() {
     cron.schedule(cronPattern, async () => {
         console.log('⏰ RSS cron job triggered');
         
-        // Check if RSS is enabled
+        // Check if RSS is enabled and not in maintenance mode
         if (!await settingsManager.getSetting('rss_enabled')) {
             console.log('🔇 RSS fetching is muted, skipping...');
+            return;
+        }
+        
+        if (serverCommands.isInMaintenanceMode()) {
+            console.log('🔧 Maintenance mode active, skipping RSS fetch...');
             return;
         }
         
@@ -336,9 +346,14 @@ function startDailyDigestCronJob() {
     cron.schedule(cronPattern, async () => {
         console.log('📰 Daily digest triggered');
         
-        // Check if digest is enabled
+        // Check if digest is enabled and not in maintenance mode
         if (!await settingsManager.getSetting('digest_enabled')) {
             console.log('🔇 Daily digest is muted, skipping...');
+            return;
+        }
+        
+        if (serverCommands.isInMaintenanceMode()) {
+            console.log('🔧 Maintenance mode active, skipping daily digest...');
             return;
         }
         

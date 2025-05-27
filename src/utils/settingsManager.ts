@@ -66,21 +66,17 @@ export class SettingsManager {
     }
 
     async setSetting(key: keyof BotSettings, value: any): Promise<void> {
-        return new Promise((resolve, reject) => {
+        try {
             const stringValue = String(value);
-            this.db.run(
+            await this.db.run(
                 'INSERT OR REPLACE INTO bot_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
-                [key, stringValue],
-                (err) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        (this.settings as any)[key] = value;
-                        resolve();
-                    }
-                }
+                [key, stringValue]
             );
-        });
+            (this.settings as any)[key] = value;
+        } catch (error) {
+            console.error(`Error setting ${key}:`, error);
+            throw error;
+        }
     }
 
     getSetting(key: keyof BotSettings): any {
