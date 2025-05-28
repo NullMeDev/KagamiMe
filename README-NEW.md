@@ -281,6 +281,55 @@ See [IMPROVEMENTS.md](IMPROVEMENTS.md) for 10 detailed enhancement suggestions i
 - Machine learning content analysis
 - Performance optimizations with Redis
 
+## 📝 **Changelog & Support**
+
+### **Recent Updates**
+- **v2.0.0** - Multi-API fact checking system with enhanced confidence scoring
+- **v1.5.0** - Advanced RSS monitoring with 11+ default sources
+- **v1.4.0** - SQLite database optimization and intelligent caching
+- **v1.3.0** - Admin controls and permission system
+- **v1.2.0** - Daily digest automation and cron scheduling
+- **v1.1.0** - Web scraping and article deduplication
+- **v1.0.0** - Initial release with Discord integration
+
+### **🎯 Support the Project**
+
+If KagamiMe has helped you stay informed and organized, consider supporting its development:
+
+**🌟 Star the Repository**
+- Give us a star on GitHub to help others discover KagamiMe
+- Share the project with your communities
+
+**💰 Donations**
+- **GitHub Sponsors**: [Support via GitHub Sponsors](https://github.com/sponsors/your-username)
+- **Ko-fi**: [Buy us a coffee](https://ko-fi.com/kagamime)
+- **PayPal**: [One-time donation](https://paypal.me/kagamime)
+- **Cryptocurrency**: 
+  - BTC: `bc1qexample123456789`
+  - ETH: `0xexample123456789`
+
+**🤝 Contribute**
+- Submit bug reports and feature requests
+- Contribute code improvements and new features
+- Help with documentation and translations
+- Share your custom RSS feeds and configurations
+
+**💡 Feature Requests**
+Have an idea for KagamiMe? Open an issue with the `enhancement` label:
+- New fact-checking APIs
+- Additional news sources
+- UI/UX improvements
+- Integration suggestions
+
+**🔧 Enterprise Support**
+For commercial use, custom implementations, or priority support:
+- Email: support@kagamime.dev
+- Discord: [Join our support server](https://discord.gg/kagamime)
+
+---
+
+*Every contribution helps make KagamiMe better for the entire community!*
+
 ## 📜 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
