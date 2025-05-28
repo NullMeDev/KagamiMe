@@ -8,6 +8,7 @@ class SettingsManager {
             rss_enabled: true,
             digest_enabled: true,
             notifications_enabled: true,
+            auto_update_enabled: true,
             fetch_interval: 30,
             digest_time: '09:00'
         };

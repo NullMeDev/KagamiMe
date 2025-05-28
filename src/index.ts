@@ -6,11 +6,25 @@ import { ArticleFetcher } from './utils/articleFetcher';
 import { AdminCommands } from './utils/adminCommands';
 import { SettingsManager } from './utils/settingsManager';
 import { ServerCommands } from './utils/serverCommands';
+import { MultiAPIFactChecker } from './utils/multiAPIFactChecker';
+import { AutoUpdateSystem } from './utils/autoUpdateSystem';
 import OpenAI from 'openai';
 import cron from 'node-cron';
+import fs from 'fs/promises';
 
 // Load environment variables
 dotenv.config();
+
+// Version helper function
+async function getVersion(): Promise<string> {
+    try {
+        const versionData = await fs.readFile('version.json', 'utf-8');
+        const version = JSON.parse(versionData);
+        return version.version || '0.4.2';
+    } catch (error) {
+        return '0.4.2';
+    }
+}
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -22,6 +36,7 @@ const db = new Database(process.env.DATABASE_PATH);
 const settingsManager = new SettingsManager(db);
 const rssFetcher = new RSSFetcher(db);
 const articleFetcher = new ArticleFetcher(db);
+const factChecker = new MultiAPIFactChecker();
 const adminCommands = new AdminCommands(db, rssFetcher, articleFetcher, settingsManager);
 const serverCommands = new ServerCommands(db);
 
@@ -34,20 +49,33 @@ const client = new Client({
     ],
 });
 
+// Initialize auto-update system
+let autoUpdateSystem: AutoUpdateSystem;
+
 // Bot ready event
 client.once(Events.ClientReady, async (readyClient) => {
-    console.log(`🔥 KagamiMe is ready! Logged in as ${readyClient.user.tag}`);
+    console.log(`🔥 KagamiMe v${await getVersion()} is ready! Logged in as ${readyClient.user.tag}`);
     
     try {
         await db.initialize();
         await settingsManager.initialize();
-        await db.logEvent('bot_startup', { user: readyClient.user.tag });
-        console.log('✅ Database and settings initialized, startup logged');
         
-        // Start RSS fetching cron job
+        // Initialize auto-update system
+        autoUpdateSystem = new AutoUpdateSystem(client, db);
+        await autoUpdateSystem.initialize();
+        
+        await db.logEvent('bot_startup', { 
+            user: readyClient.user.tag,
+            version: await getVersion(),
+            apis_enabled: factChecker.getAPIStatus()
+        });
+        console.log('✅ Database, settings, and auto-update system initialized');
+        
+        // Start cron jobs
         startRSSCronJob();
         startDailyDigestCronJob();
-        console.log('🕒 Cron jobs scheduled');
+        startUpdateCheckCronJob();
+        console.log('🕒 All cron jobs scheduled');
         
         // Start daily digest cron job
         startDailyDigestCronJob();
@@ -91,6 +119,10 @@ client.on(Events.MessageCreate, async (message: Message) => {
                 break;
             case 'ask':
                 await handleAskCommand(message, args);
+                break;
+            case 'fact':
+            case 'factcheck':
+                await handleFactCheckCommand(message, args);
                 break;
             default:
                 // Log unknown command
@@ -244,9 +276,9 @@ async function handleCmdsCommand(message: Message) {
         fields: [
             { name: '🔧 Basic Commands', value: '`!status` - Check bot status\n`!whoami` - Your user info\n`!cmds` - This command list', inline: false },
             { name: '🗞️ News Commands', value: '`!kagami pull` - Fetch latest RSS feeds\n`!kagami latest` - Show recent news\n`!kagami check <url>` - Fact-check article\n`!kagami analyze <url>` - Deep analysis', inline: false },
-            { name: '🤖 AI Commands', value: '`!ask <question>` - Ask me anything', inline: false },
+            { name: '🤖 AI Commands', value: '`!ask <question>` - Ask me anything\n`!fact <claim>` - Multi-API fact-check', inline: false },
         ],
-        footer: { text: 'KagamiMe (鏡眼) - Your digital sentinel' },
+        footer: { text: 'KagamiMe (鏡眼) - The best fake-news fighter' },
     };
     
     await message.reply({ embeds: [commandsEmbed] });
@@ -300,6 +332,102 @@ async function handleAskCommand(message: Message, args: string[]) {
         await message.reply('❌ I encountered an error while processing your question. Please try again later.');
         await db.logEvent('ai_error', { 
             question, 
+            error: error instanceof Error ? error.message : String(error),
+            user: message.author.tag 
+        });
+    }
+}
+
+// Fact-check command (Multi-API fact verification)
+async function handleFactCheckCommand(message: Message, args: string[]) {
+    if (args.length === 0) {
+        await message.reply('❓ Please provide a claim to fact-check.\nExample: `!fact The Earth is flat`');
+        return;
+    }
+    
+    const claim = args.join(' ');
+    
+    // Check API status
+    const apiStatus = factChecker.getAPIStatus();
+    const availableAPIs = Object.entries(apiStatus).filter(([, enabled]) => enabled).map(([api]) => api);
+    
+    if (availableAPIs.length === 0) {
+        await message.reply('❌ No fact-checking APIs are configured. Please contact an administrator.');
+        return;
+    }
+    
+    try {
+        // Show typing indicator
+        if (message.channel.type === 0) { // Text channel
+            await (message.channel as TextChannel).sendTyping();
+        }
+        
+        // Initial message
+        const statusMessage = await message.reply(`🔍 **Fact-checking claim...**\n📊 Using ${availableAPIs.length} API(s): ${availableAPIs.join(', ')}\n⏳ Please wait...`);
+        
+        // Perform fact-check
+        const result = await factChecker.checkClaim(claim);
+        
+        // Create result embed
+        const verdictColor = result.overall_verdict === 'true' ? 0x00ff00 : 
+                           result.overall_verdict === 'false' ? 0xff0000 : 
+                           result.overall_verdict === 'mixed' ? 0xffaa00 : 0x888888;
+        
+        const verdictEmoji = result.overall_verdict === 'true' ? '✅' : 
+                           result.overall_verdict === 'false' ? '❌' : 
+                           result.overall_verdict === 'mixed' ? '⚠️' : '❓';
+        
+        const factCheckEmbed = {
+            title: `${verdictEmoji} Fact-Check Results`,
+            description: `**Claim:** "${claim}"`,
+            color: verdictColor,
+            fields: [
+                {
+                    name: '📊 Overall Verdict',
+                    value: `**${result.overall_verdict.toUpperCase()}**\nConfidence: ${(result.confidence_score * 100).toFixed(1)}%\nConsensus: ${result.consensus ? '✅ Yes' : '❌ No'}`,
+                    inline: true
+                },
+                {
+                    name: '🔬 API Results',
+                    value: result.results.map(r => {
+                        const icon = r.source === 'openai' ? '🤖' : 
+                                   r.source === 'claimbuster' ? '🔬' : 
+                                   r.source === 'google' ? '🌐' : '❓';
+                        return `${icon} **${r.source.toUpperCase()}:** ${r.verdict} (${(r.confidence * 100).toFixed(0)}%)`;
+                    }).join('\n'),
+                    inline: false
+                },
+                {
+                    name: '📝 Summary',
+                    value: result.summary.length > 1000 ? result.summary.substring(0, 997) + '...' : result.summary,
+                    inline: false
+                }
+            ],
+            footer: { 
+                text: `KagamiMe (鏡眼) Multi-API Fact-Checker • ${result.results.length} APIs consulted`,
+                icon_url: message.client.user?.displayAvatarURL()
+            },
+            timestamp: new Date().toISOString()
+        };
+        
+        // Update the status message with results
+        await statusMessage.edit({ content: '', embeds: [factCheckEmbed] });
+        
+        // Log the fact-check
+        await db.logEvent('fact_check', { 
+            claim,
+            verdict: result.overall_verdict,
+            confidence: result.confidence_score,
+            apis_used: availableAPIs,
+            user: message.author.tag,
+            guild: message.guild?.name
+        });
+        
+    } catch (error) {
+        console.error('Fact-check error:', error);
+        await message.reply('❌ An error occurred while fact-checking your claim. Please try again later.');
+        await db.logEvent('fact_check_error', { 
+            claim,
             error: error instanceof Error ? error.message : String(error),
             user: message.author.tag 
         });
@@ -368,6 +496,61 @@ function startDailyDigestCronJob() {
     console.log(`📅 Daily digest scheduled: ${digestTime} daily`);
 }
 
+// Auto-update cron job
+function startUpdateCheckCronJob() {
+    const updateInterval = process.env.UPDATE_CHECK_INTERVAL_HOURS || '6';
+    const cronPattern = `0 */${updateInterval} * * *`; // Every X hours
+    
+    cron.schedule(cronPattern, async () => {
+        console.log('🔄 Auto-update check triggered');
+        
+        // Check if auto-updates are enabled and not in maintenance mode
+        if (!await settingsManager.getSetting('auto_update_enabled')) {
+            console.log('🔇 Auto-updates are disabled, skipping...');
+            return;
+        }
+        
+        if (serverCommands.isInMaintenanceMode()) {
+            console.log('🔧 Maintenance mode active, skipping update check...');
+            return;
+        }
+        
+        try {
+            const autoUpdater = new AutoUpdateSystem(client, db);
+            const updateAvailable = await autoUpdater.checkForUpdates();
+            
+            if (updateAvailable) {
+                console.log('🚀 Update available, starting auto-update process...');
+                try {
+                    await autoUpdater.performUpdate();
+                    console.log('✅ Auto-update completed successfully');
+                    await db.logEvent('auto_update_success', { 
+                        timestamp: new Date().toISOString(),
+                        trigger: 'cron_job'
+                    });
+                } catch (updateError) {
+                    console.log('❌ Auto-update failed:', updateError);
+                    await db.logEvent('auto_update_failed', { 
+                        timestamp: new Date().toISOString(),
+                        trigger: 'cron_job',
+                        error: updateError instanceof Error ? updateError.message : String(updateError)
+                    });
+                }
+            } else {
+                console.log('✅ KagamiMe is up to date');
+            }
+        } catch (error) {
+            console.error('❌ Auto-update cron job error:', error);
+            await db.logEvent('auto_update_cron_error', { 
+                error: error instanceof Error ? error.message : String(error),
+                timestamp: new Date().toISOString()
+            });
+        }
+    });
+    
+    console.log(`🔄 Auto-update cron job scheduled: every ${updateInterval} hours`);
+}
+
 async function sendDailyDigest() {
     const channelId = process.env.NOTIFY_CHANNEL_ID;
     if (!channelId) return;
@@ -391,7 +574,7 @@ async function sendDailyDigest() {
             value: `📅 ${story.feed_name} • [Read more](${story.url})\n${story.description || 'No description available'}`.slice(0, 1024),
             inline: false
         })),
-        footer: { text: 'KagamiMe (鏡眼) - Your digital sentinel' },
+        footer: { text: 'KagamiMe (鏡眼) - The best fake-news fighter' },
         timestamp: new Date().toISOString()
     };
     

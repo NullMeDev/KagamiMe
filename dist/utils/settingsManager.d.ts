@@ -3,6 +3,7 @@ export interface BotSettings {
     rss_enabled: boolean;
     digest_enabled: boolean;
     notifications_enabled: boolean;
+    auto_update_enabled: boolean;
     fetch_interval: number;
     digest_time: string;
 }

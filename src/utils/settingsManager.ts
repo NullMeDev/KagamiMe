@@ -4,6 +4,7 @@ export interface BotSettings {
     rss_enabled: boolean;
     digest_enabled: boolean;
     notifications_enabled: boolean;
+    auto_update_enabled: boolean;
     fetch_interval: number;
     digest_time: string;
 }
@@ -18,6 +19,7 @@ export class SettingsManager {
             rss_enabled: true,
             digest_enabled: true,
             notifications_enabled: true,
+            auto_update_enabled: true,
             fetch_interval: 30,
             digest_time: '09:00'
         };

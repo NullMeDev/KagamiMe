@@ -1,0 +1,40 @@
+{
+  "version": "0.4.2",
+  "build": "2024052802",
+  "release_date": "2024-05-28",
+  "changelog": {
+    "0.4.2": {
+      "type": "major",
+      "changes": [
+        "Multi-API fact-checking integration (OpenAI, ClaimBuster, Google Fact Check)",
+        "Enhanced auto-update system with Discord notifications and cron scheduling",
+        "Version tracking and changelog system with build numbers",
+        "Enhanced installation script with Ubuntu 24.04 compatibility",
+        "Discord !fact command for real-time fact-checking",
+        "Consensus algorithm for multiple API result aggregation",
+        "Midnight purple ASCII branding and NullMeDev attribution",
+        "Comprehensive test suite for multi-API verification"
+      ],
+      "date": "2024-05-28"
+    }
+  },
+  "update_check": {
+    "enabled": true,
+    "interval_hours": 6,
+    "last_check": null,
+    "auto_update": true
+  },
+  "features": [
+    "Discord bot with anime-inspired personality (KagamiMe 鏡眼)",
+    "RSS feed monitoring and news harvesting",
+    "SQLite database with complete schema",
+    "Multi-API fact-checking (OpenAI + ClaimBuster + Google Fact Check)",
+    "Consensus algorithm for fact-check result aggregation",
+    "Auto-update system with Discord notifications",
+    "Admin commands for RSS and system management",
+    "Server management through Discord commands",
+    "Automated installation with Ubuntu 24.04 support",
+    "Version tracking and changelog system",
+    "Comprehensive testing suite"
+  ]
+}

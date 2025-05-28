@@ -9,25 +9,32 @@
     "dev": "ts-node src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["discord", "bot", "news", "rss", "fact-check", "ai"],
+  "keywords": [
+    "discord",
+    "bot",
+    "news",
+    "rss",
+    "fact-check",
+    "ai"
+  ],
   "author": "KagamiMe",
   "license": "MIT",
   "dependencies": {
-    "discord.js": "^14.14.1",
-    "sqlite3": "^5.1.6",
-    "rss-parser": "^3.13.0",
-    "node-cron": "^3.0.3",
-    "cheerio": "^1.0.0-rc.12",
     "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "google-auth-library": "^9.15.1",
+    "node-cron": "^3.0.3",
     "openai": "^4.20.1",
-    "dotenv": "^16.3.1"
+    "rss-parser": "^3.13.0",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "@types/sqlite3": "^3.1.11",
     "@types/node-cron": "^3.0.11",
-    "typescript": "^5.3.2",
-    "ts-node": "^10.9.1"
+    "@types/sqlite3": "^3.1.11",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
   }
 }
-
