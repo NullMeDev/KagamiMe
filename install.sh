@@ -3,6 +3,7 @@
 # KagamiMe (KagamiMe) Enhanced Installation Script
 # Ubuntu 24.04 Compatible - Automated Setup with Style
 # Made with <3 by NullMeDev
+# Fixed version - 2025 update
 
 set -e
 
@@ -120,7 +121,7 @@ parse_arguments() {
 IS_ROOT=false
 if [[ $EUID -eq 0 ]]; then
     IS_ROOT=true
-}
+fi
 
 # Check Ubuntu version
 check_ubuntu_version() {
@@ -385,6 +386,120 @@ UPDATE_CHECK_INTERVAL=0 */6 * * *"
     fi
 }
 
+# Setup systemd service
+setup_systemd() {
+    log "Setting up systemd service..."
+    
+    SYSTEMD_FILE="/etc/systemd/system/kagamime.service"
+    SERVICE_CONTENT="[Unit]
+Description=KagamiMe Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$(which node) $INSTALL_DIR/dist/index.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=kagamime
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target"
+
+    if [ "$IS_ROOT" = true ]; then
+        echo "$SERVICE_CONTENT" > "$SYSTEMD_FILE"
+    else
+        echo "$SERVICE_CONTENT" | sudo tee "$SYSTEMD_FILE" > /dev/null
+    fi
+    
+    if [ "$IS_ROOT" = true ]; then
+        systemctl daemon-reload
+        systemctl enable kagamime.service
+    else
+        sudo systemctl daemon-reload
+        sudo systemctl enable kagamime.service
+    fi
+    
+    log "Systemd service installed and enabled"
+}
+
+# Install dependencies
+install_npm_dependencies() {
+    log "Installing npm dependencies..."
+    
+    cd "$INSTALL_DIR"
+    
+    if [ "$SERVICE_USER" != "$(whoami)" ] && [ "$SERVICE_USER" != "root" ]; then
+        if [ "$IS_ROOT" = true ]; then
+            sudo -u "$SERVICE_USER" npm install
+        else
+            sudo -u "$SERVICE_USER" npm install
+        fi
+    else
+        npm install
+    fi
+    
+    log "Building TypeScript project..."
+    if [ "$SERVICE_USER" != "$(whoami)" ] && [ "$SERVICE_USER" != "root" ]; then
+        if [ "$IS_ROOT" = true ]; then
+            sudo -u "$SERVICE_USER" npm run build
+        else
+            sudo -u "$SERVICE_USER" npm run build
+        fi
+    else
+        npm run build
+    fi
+    
+    log "Dependencies installed and project built successfully"
+}
+
+# Create database
+setup_database() {
+    log "Setting up database..."
+    
+    cd "$INSTALL_DIR"
+    
+    # Create data directory if it doesn't exist
+    if [ ! -d "data" ]; then
+        mkdir -p data
+    fi
+    
+    # Initialize database if needed
+    if [ -f "init-database.js" ]; then
+        log "Initializing database..."
+        if [ "$SERVICE_USER" != "$(whoami)" ] && [ "$SERVICE_USER" != "root" ]; then
+            if [ "$IS_ROOT" = true ]; then
+                sudo -u "$SERVICE_USER" node init-database.js
+            else
+                sudo -u "$SERVICE_USER" node init-database.js
+            fi
+        else
+            node init-database.js
+        fi
+    else
+        warning "Database initialization script not found. Database may need to be set up manually."
+    fi
+    
+    log "Database setup completed"
+}
+
+# Start the bot
+start_bot() {
+    log "Starting KagamiMe bot..."
+    
+    if [ "$IS_ROOT" = true ]; then
+        systemctl start kagamime.service
+    else
+        sudo systemctl start kagamime.service
+    fi
+    
+    log "Bot started successfully!"
+}
+
 # Main function
 main() {
     clear
@@ -415,12 +530,29 @@ main() {
     create_user
     setup_repository
     configure_environment
-    
-    log "Installation completed successfully!"
-    log "You can now run KagamiMe by executing: npm start"
+    install_npm_dependencies
+    setup_database
+    setup_systemd
     
     echo ""
+    read -p "Do you want to start the bot now? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        start_bot
+    else
+        log "Bot not started. You can start it later with: sudo systemctl start kagamime.service"
+    fi
+    
+    log "Installation completed successfully!"
+    echo ""
     echo -e "${GREEN}Thank you for installing KagamiMe!${NC}"
+    echo -e "${CYAN}Usage:${NC}"
+    echo -e "  ${YELLOW}Start:${NC}   sudo systemctl start kagamime.service"
+    echo -e "  ${YELLOW}Stop:${NC}    sudo systemctl stop kagamime.service"
+    echo -e "  ${YELLOW}Status:${NC}  sudo systemctl status kagamime.service"
+    echo -e "  ${YELLOW}Logs:${NC}    sudo journalctl -u kagamime.service -f"
+    echo ""
+    echo -e "${PURPLE}Made with <3 by NullMeDev${NC}"
 }
 
 # Execute main function with all arguments
