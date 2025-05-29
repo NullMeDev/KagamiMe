@@ -1,12 +1,10 @@
 // Multi-API Fact Checker for KagamiMe
-// Integrates OpenAI, ClaimBuster, and Google Fact Check APIs
-// Made with 💜 by NullMeDev
+// Rule-based implementation with Google Fact Check and ClaimBuster APIs
 
-import { getOpenAI } from './openaiClient.js';
 import axios from 'axios';
 
 export interface FactCheckResult {
-    source: 'openai' | 'claimbuster' | 'google';
+    source: 'rules-engine' | 'claimbuster' | 'google';
     verdict: 'true' | 'false' | 'mixed' | 'unverified' | 'error';
     confidence: number;
     explanation: string;
@@ -23,73 +21,151 @@ export interface MultiAPIResult {
     summary: string;
 }
 
+interface RulePattern {
+    pattern: RegExp;
+    verdict: 'true' | 'false' | 'mixed' | 'unverified';
+    confidence: number;
+    explanation: string;
+    sources: string[];
+}
+
 export class MultiAPIFactChecker {
-    private openaiApiKey: string;
     private claimbusterApiKey: string;
     private googleApiKey: string;
+    private rules: RulePattern[];
 
     constructor() {
-        this.openaiApiKey = process.env.OPENAI_API_KEY || '';
         this.claimbusterApiKey = process.env.CLAIMBUSTER_API_KEY || '';
         this.googleApiKey = process.env.GOOGLE_API_KEY || '';
+        this.rules = this.initializeRules();
     }
 
     /**
-     * Check a claim using OpenAI GPT for fact verification
+     * Initialize the rule-based fact checking patterns
      */
-    async checkWithOpenAI(claim: string): Promise<FactCheckResult> {
+    private initializeRules(): RulePattern[] {
+        return [
+            {
+                pattern: /earth\s+is\s+flat/i,
+                verdict: 'false',
+                confidence: 0.95,
+                explanation: 'The Earth is demonstrably round, as proven by multiple lines of evidence including photos from space, circumnavigation, and direct observation of the planet\'s curvature.',
+                sources: [
+                    'https://www.nasa.gov/topics/earth/features/20111028_earth_shape.html',
+                    'https://www.nationalgeographic.org/encyclopedia/geodesy/'
+                ]
+            },
+            {
+                pattern: /vaccines?\s+cause\s+autism/i,
+                verdict: 'false',
+                confidence: 0.95,
+                explanation: 'Extensive scientific research has found no link between vaccines and autism. Multiple large-scale studies involving millions of children have conclusively disproven this claim.',
+                sources: [
+                    'https://www.cdc.gov/vaccinesafety/concerns/autism.html',
+                    'https://www.who.int/vaccine_safety/committee/topics/mmr/dec_2002/en/'
+                ]
+            },
+            {
+                pattern: /5g\s+(causes?|spreads?|linked\s+to)\s+(coronavirus|covid|covid-?19)/i,
+                verdict: 'false',
+                confidence: 0.95,
+                explanation: 'There is no scientific evidence that 5G technology causes or is linked to COVID-19. Viruses cannot travel on radio waves or mobile networks.',
+                sources: [
+                    'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/myth-busters',
+                    'https://fullfact.org/health/5G-not-accelerating-coronavirus/'
+                ]
+            },
+            {
+                pattern: /climate\s+change\s+is\s+(a\s+hoax|not\s+real|fake)/i,
+                verdict: 'false',
+                confidence: 0.95,
+                explanation: 'Climate change is supported by overwhelming scientific consensus. Multiple independent lines of evidence show that the Earth is warming due to human activities.',
+                sources: [
+                    'https://climate.nasa.gov/scientific-consensus/',
+                    'https://www.ipcc.ch/report/ar6/wg1/'
+                ]
+            },
+            {
+                pattern: /evolution\s+is\s+(just\s+a\s+theory|not\s+real|false)/i,
+                verdict: 'false',
+                confidence: 0.92,
+                explanation: 'Evolution is supported by overwhelming scientific evidence. In science, a "theory" refers to an explanation that has been repeatedly tested and confirmed through observation and experimentation.',
+                sources: [
+                    'https://www.nationalacademies.org/evolution',
+                    'https://www.scientificamerican.com/article/15-answers-to-creationist/'
+                ]
+            }
+            // Add more rules for common misinformation as needed
+        ];
+    }
+
+    /**
+     * Check a claim using the rule-based system
+     */
+    async checkWithRules(claim: string): Promise<FactCheckResult> {
         try {
-            if (!this.openaiApiKey) {
-                throw new Error('OpenAI API key not configured');
+            // Check against our rule patterns
+            for (const rule of this.rules) {
+                if (rule.pattern.test(claim)) {
+                    return {
+                        source: 'rules-engine',
+                        verdict: rule.verdict,
+                        confidence: rule.confidence,
+                        explanation: rule.explanation,
+                        sources: rule.sources
+                    };
+                }
             }
 
-            const prompt = `As a fact-checking expert, analyze this claim and provide a verdict:
-
-"${claim}"
-
-Provide your response in this exact JSON format:
-{
-    "verdict": "true|false|mixed|unverified",
-    "confidence": 0.0-1.0,
-    "explanation": "Detailed explanation of your analysis",
-    "sources": ["source1", "source2"]
-}
-
-Be thorough, objective, and cite reliable sources when possible.`;
-
-            const openaiClient = getOpenAI();
-            const completion = await openaiClient.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.3,
-                max_tokens: 500
-            });
-
-            const response = completion.choices[0]?.message?.content;
-            if (!response) {
-                throw new Error('No response from OpenAI');
-            }
-
-            const parsed = JSON.parse(response);
+            // If no rule matches, perform basic keyword analysis
+            const keywordAnalysis = this.analyzeKeywords(claim);
             
             return {
-                source: 'openai',
-                verdict: parsed.verdict,
-                confidence: parsed.confidence,
-                explanation: parsed.explanation,
-                sources: parsed.sources || []
+                source: 'rules-engine',
+                verdict: 'unverified',
+                confidence: 0.3, // Low confidence for non-rule matches
+                explanation: `No direct rule match found. ${keywordAnalysis}`,
+                sources: []
             };
 
         } catch (error) {
-            console.error('OpenAI fact-check error:', error);
+            console.error('Rules-based fact-check error:', error);
             return {
-                source: 'openai',
+                source: 'rules-engine',
                 verdict: 'error',
                 confidence: 0,
-                explanation: `OpenAI check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                explanation: `Rules-based check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 sources: []
             };
         }
+    }
+
+    /**
+     * Perform basic keyword analysis for claims without direct rule matches
+     */
+    private analyzeKeywords(claim: string): string {
+        const lowerClaim = claim.toLowerCase();
+        const keywords = {
+            questionable: ['hoax', 'conspiracy', 'they don\'t want you to know', 'secret', 'hidden truth', 'cover-up', 'deep state'],
+            credible: ['research shows', 'study finds', 'evidence suggests', 'according to', 'scientists found', 'data indicates'],
+            uncertain: ['may', 'might', 'could', 'possibly', 'potentially', 'suggests', 'indicates']
+        };
+        
+        const matches = {
+            questionable: keywords.questionable.filter(word => lowerClaim.includes(word)),
+            credible: keywords.credible.filter(word => lowerClaim.includes(word)),
+            uncertain: keywords.uncertain.filter(word => lowerClaim.includes(word))
+        };
+        
+        if (matches.questionable.length > 0) {
+            return `Contains potentially questionable language (${matches.questionable.join(', ')}). Consider checking reliable sources.`;
+        } else if (matches.credible.length > 0) {
+            return `Contains references to research or studies (${matches.credible.join(', ')}), but verification of specific claims is still needed.`;
+        } else if (matches.uncertain.length > 0) {
+            return `Contains uncertain language (${matches.uncertain.join(', ')}), suggesting the claim may not be definitive.`;
+        }
+        
+        return 'No clear indicators of credibility or questionability found in the text.';
     }
 
     /**
@@ -265,9 +341,8 @@ Be thorough, objective, and cite reliable sources when possible.`;
         // Run checks in parallel for speed
         const promises: Promise<FactCheckResult>[] = [];
         
-        if (this.openaiApiKey) {
-            promises.push(this.checkWithOpenAI(claim));
-        }
+        // Always include the rules-based checker
+        promises.push(this.checkWithRules(claim));
         
         if (this.claimbusterApiKey && useAllAPIs) {
             promises.push(this.checkWithClaimBuster(claim));
@@ -370,7 +445,7 @@ Be thorough, objective, and cite reliable sources when possible.`;
         
         summary += `**Individual Results:**\n`;
         results.forEach((result, index) => {
-            const icon = result.source === 'openai' ? '🤖' : 
+            const icon = result.source === 'rules-engine' ? '📏' : 
                         result.source === 'claimbuster' ? '🔬' : 
                         result.source === 'google' ? '🌐' : '❓';
             
@@ -387,12 +462,10 @@ Be thorough, objective, and cite reliable sources when possible.`;
      * Quick fact-check using only the fastest/most reliable API
      */
     async quickCheck(claim: string): Promise<FactCheckResult> {
-        // Use OpenAI for quick checks as it's most reliable
-        if (this.openaiApiKey) {
-            return await this.checkWithOpenAI(claim);
-        }
+        // Use rules-based checker for quick checks
+        return await this.checkWithRules(claim);
         
-        // Fallback to Google if OpenAI not available
+        // Fallback to Google if available
         if (this.googleApiKey) {
             return await this.checkWithGoogle(claim);
         }
@@ -403,7 +476,7 @@ Be thorough, objective, and cite reliable sources when possible.`;
         }
         
         return {
-            source: 'openai',
+            source: 'rules-engine',
             verdict: 'error',
             confidence: 0,
             explanation: 'No fact-checking APIs are configured',
@@ -416,9 +489,10 @@ Be thorough, objective, and cite reliable sources when possible.`;
      */
     getAPIStatus(): { [key: string]: boolean } {
         return {
-            openai: !!this.openaiApiKey,
+            rules: true, // Rules engine is always available
             claimbuster: !!this.claimbusterApiKey,
             google: !!this.googleApiKey
         };
     }
 }
+

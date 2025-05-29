@@ -1,8 +1,11 @@
 {
   "name": "kagamime",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "KagamiMe (鏡眼) - Your sovereign, anime-inspired sentinel on the digital horizon",
   "main": "dist/index.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -26,7 +29,6 @@
     "dotenv": "^16.3.1",
     "google-auth-library": "^9.15.1",
     "node-cron": "^3.0.3",
-    "openai": "^4.20.1",
     "rss-parser": "^3.13.0",
     "sqlite3": "^5.1.6"
   },

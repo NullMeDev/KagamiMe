@@ -1,6 +1,8 @@
-# Google Fact Check Tools API Setup Guide
+# Google API Setup Guide for KagamiMe
 
-## 🌐 Setting up Google Fact Check Tools API for KagamiMe
+## 🌐 Using Google Fact Check Tools API with KagamiMe
+
+This guide explains how to set up Google Fact Check Tools API access using a simple API key approach (no OAuth required).
 
 ### Step 1: Google Cloud Console Setup
 
@@ -42,8 +44,10 @@ Add your API key to your environment file:
 
 ```bash
 # In your .env file
-GOOGLE_FACTCHECK_API_KEY=AIzaSyD_your_actual_api_key_here
+GOOGLE_API_KEY=AIzaSyD_your_actual_api_key_here
 ```
+
+> **Note:** Previous versions of KagamiMe used OAuth2 authentication and the variable name `GOOGLE_FACTCHECK_API_KEY`. The newer simplified approach uses a direct API key with the variable name `GOOGLE_API_KEY`.
 
 ### Step 4: Test Your Setup
 
@@ -62,7 +66,7 @@ Look for:
 
 - **Free Tier**: 1,000 requests per day
 - **Rate Limit**: 100 requests per 100 seconds per user
-- **Quota**: Can be increased in Cloud Console
+- **Quota**: Can be increased in Google Cloud Console
 
 ### Troubleshooting
 
@@ -117,3 +121,4 @@ Successful response:
 
 **Made with 💜 by NullMeDev**  
 *The best fake-news fighter (鏡眼)*
+
