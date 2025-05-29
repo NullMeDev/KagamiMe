@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 # Configuration
-REPO_URL="https://github.com/nullmedev/kagamime.git"
+# Note: This script assumes the repository has already been manually cloned/downloaded
 INSTALL_DIR="/opt/kagamime"
 SERVICE_USER="kagamime"
 NODE_VERSION="18"
@@ -140,21 +140,50 @@ create_user() {
     fi
 }
 
-# Clone or update repository
+# Setup repository directory (assumes repository is already cloned)
 setup_repository() {
-    log "Setting up KagamiMe repository..."
+    log "Setting up KagamiMe repository directory..."
     
-    if [[ -d "$INSTALL_DIR" ]]; then
-        warning "Installation directory exists. Backing up..."
-        sudo mv "$INSTALL_DIR" "${INSTALL_DIR}.backup.$(date +%s)"
+    # Check if the installation directory exists
+    if [[ ! -d "$INSTALL_DIR" ]]; then
+        error "Installation directory $INSTALL_DIR does not exist."
+        error "Please manually clone or download the repository first."
+        error "Example: git clone https://github.com/nullmedev/kagamime.git $INSTALL_DIR"
+        exit 1
     fi
     
-    log "Cloning repository from $REPO_URL..."
-    sudo git clone "$REPO_URL" "$INSTALL_DIR"
+    # Verify it's a valid repository
+    if [[ ! -f "$INSTALL_DIR/package.json" ]]; then
+        error "The directory $INSTALL_DIR does not appear to contain a valid KagamiMe repository."
+        error "Please ensure you have manually cloned or downloaded the repository correctly."
+        exit 1
+    fi
+    
+    # Set ownership
+    log "Setting correct ownership on repository directory..."
     sudo chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
     
     cd "$INSTALL_DIR"
-    sudo -u "$SERVICE_USER" git config --global --add safe.directory "$INSTALL_DIR"
+    
+    # Check if this is a git repository and configure it
+    if [[ -d "$INSTALL_DIR/.git" ]]; then
+        sudo -u "$SERVICE_USER" git config --global --add safe.directory "$INSTALL_DIR"
+        
+        # Offer to update if it's a git repository
+        read -p "Would you like to update the repository with the latest changes? (Y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            log "Pulling latest changes from repository..."
+            sudo -u "$SERVICE_USER" git pull
+        else
+            log "Skipping repository update."
+        fi
+    else
+        warning "Directory is not a git repository. Automated updates will not be available."
+        warning "For future updates, consider using git to clone the repository."
+    fi
+    
+    log "Repository setup completed."
 }
 
 # Interactive configuration
@@ -308,7 +337,7 @@ alias kagamime-restart='sudo systemctl restart kagamime-bot'
 alias kagamime-status='sudo systemctl status kagamime-bot'
 alias kagamime-logs='sudo journalctl -u kagamime-bot -f'
 alias kagamime-logs-tail='sudo journalctl -u kagamime-bot --no-pager -n 50'
-alias kagamime-update='cd /opt/kagamime && sudo -u kagamime git pull && sudo -u kagamime npm install && sudo -u kagamime npm run build && sudo systemctl restart kagamime-bot'
+alias kagamime-update='cd /opt/kagamime && [ -d .git ] && sudo -u kagamime git pull && sudo -u kagamime npm install && sudo -u kagamime npm run build && sudo systemctl restart kagamime-bot'
 EOF
     
     sudo chmod +x "$ALIAS_FILE"
@@ -399,7 +428,7 @@ show_summary() {
     echo ""
     echo -e "${BOLD}${BRIGHT_PURPLE}[+] KagamiMe Installation Complete! [+]${NC}"
     echo ""
-    echo -e "${GREEN}[+] Repository cloned and configured${NC}"
+    echo -e "${GREEN}[+] Repository configured${NC}"
     echo -e "${GREEN}[+] Dependencies installed${NC}"
     echo -e "${GREEN}[+] Environment configured${NC}"
     echo -e "${GREEN}[+] Database initialized${NC}"
@@ -425,6 +454,22 @@ main() {
     show_ascii_art
     
     log "Starting KagamiMe enhanced installation..."
+    
+    # Display manual repository setup message
+    echo -e "${BOLD}${YELLOW}[!] IMPORTANT: Manual Repository Setup Required${NC}"
+    echo -e "This installation script requires that you manually clone or download"
+    echo -e "the KagamiMe repository to your installation directory before running this script."
+    echo
+    echo -e "To manually set up the repository, you can use one of these methods:"
+    echo -e "1. Using git: git clone https://github.com/nullmedev/kagamime.git $INSTALL_DIR"
+    echo -e "2. Download and extract the zip file from the GitHub repository"
+    echo
+    read -p "Have you already cloned or downloaded the repository to $INSTALL_DIR? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        error "Please clone or download the repository first, then run this script again."
+        exit 1
+    fi
     
     check_root
     check_ubuntu_version
