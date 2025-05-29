@@ -116,13 +116,10 @@ parse_arguments() {
     fi
 }
 
-# Check if running as root
-check_root() {
-    if [[ $EUID -eq 0 ]]; then
-        error "This script should not be run as root directly."
-        error "It will prompt for sudo when needed."
-        exit 1
-    fi
+# Check if running as root and set a flag
+IS_ROOT=false
+if [[ $EUID -eq 0 ]]; then
+    IS_ROOT=true
 }
 
 # Check Ubuntu version
@@ -162,8 +159,14 @@ install_nodejs() {
     log "Installing Node.js $NODE_VERSION..."
     
     # Use NodeSource repository for Ubuntu 24.04 compatibility
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    # When running as root, we don't need sudo
+    if [ "$IS_ROOT" = true ]; then
+        curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+        apt-get install -y nodejs
+    else
+        curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    fi
     
     log "Node.js $(node --version) installed successfully"
 }
@@ -172,7 +175,12 @@ install_nodejs() {
 install_dependencies() {
     log "Installing system dependencies..."
     
-    sudo apt-get update
+    # When running as root, we don't need sudo
+    if [ "$IS_ROOT" = true ]; then
+        apt-get update
+    else
+        sudo apt-get update
+    fi
     
     # Only install packages that aren't already present
     PACKAGES=(
@@ -186,7 +194,11 @@ install_dependencies() {
     for package in "${PACKAGES[@]}"; do
         if ! dpkg -l | grep -q "^ii  $package "; then
             info "Installing $package..."
-            sudo apt-get install -y "$package"
+            if [ "$IS_ROOT" = true ]; then
+                apt-get install -y "$package"
+            else
+                sudo apt-get install -y "$package"
+            fi
         else
             info "$package already installed - skipping"
         fi
@@ -195,15 +207,31 @@ install_dependencies() {
 
 # Create service user
 create_user() {
-    if [ "$INSTALL_DIR" == "$HOME" ] || [ "$INSTALL_DIR" == "$(pwd)" ]; then
+    # If we're in the current directory or home directory, use the current user
+    if [[ "$INSTALL_DIR" == "$HOME"* ]] || [[ "$INSTALL_DIR" == "$(pwd)"* ]] || [ "$USE_CURRENT_DIR" = true ]; then
         log "Using current user for installation in home directory"
-        SERVICE_USER="$(whoami)"
+        if [ "$IS_ROOT" = true ]; then
+            # If running as root, use the SUDO_USER if available
+            if [ -n "$SUDO_USER" ]; then
+                SERVICE_USER="$SUDO_USER"
+                log "Using the original user: $SERVICE_USER"
+            else
+                SERVICE_USER="root"
+                log "Using root user for installation"
+            fi
+        else
+            SERVICE_USER="$(whoami)"
+        fi
         return 0
     fi
 
     if ! id "$SERVICE_USER" &>/dev/null; then
         log "Creating service user: $SERVICE_USER"
-        sudo useradd -r -s /bin/bash -d "$INSTALL_DIR" -m "$SERVICE_USER"
+        if [ "$IS_ROOT" = true ]; then
+            useradd -r -s /bin/bash -d "$INSTALL_DIR" -m "$SERVICE_USER"
+        else
+            sudo useradd -r -s /bin/bash -d "$INSTALL_DIR" -m "$SERVICE_USER"
+        fi
     else
         log "User $SERVICE_USER already exists"
     fi
@@ -223,7 +251,11 @@ setup_repository() {
         
         # Otherwise, try to create the directory
         log "Creating installation directory: $INSTALL_DIR"
-        sudo mkdir -p "$INSTALL_DIR"
+        if [ "$IS_ROOT" = true ]; then
+            mkdir -p "$INSTALL_DIR"
+        else
+            sudo mkdir -p "$INSTALL_DIR"
+        fi
         
         error "Installation directory $INSTALL_DIR created but is empty."
         error "Please manually download the repository files to this directory first."
@@ -238,9 +270,13 @@ setup_repository() {
     fi
     
     # Set ownership - only if we're not using the current user's directory
-    if [ "$SERVICE_USER" != "$(whoami)" ]; then
+    if [ "$SERVICE_USER" != "$(whoami)" ] && [ "$SERVICE_USER" != "root" ]; then
         log "Setting correct ownership on repository directory..."
-        sudo chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+        if [ "$IS_ROOT" = true ]; then
+            chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+        else
+            sudo chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+        fi
     fi
     
     cd "$INSTALL_DIR"
@@ -301,9 +337,8 @@ configure_environment() {
     read -p "Admin Role ID (optional): " -r ADMIN_ROLE_ID
     
     # Generate .env file - use sudo only if we're not the service user
-    if [ "$SERVICE_USER" != "$(whoami)" ]; then
-        sudo -u "$SERVICE_USER" tee "$ENV_FILE" > /dev/null <<EOF
-# KagamiMe Environment Configuration
+    # If running as root, just write the file directly
+    ENV_CONTENT="# KagamiMe Environment Configuration
 # Generated on $(date)
 
 # Discord Bot Configuration
@@ -335,45 +370,18 @@ DIGEST_TIME=0 8 * * *
 
 # Update Settings
 AUTO_UPDATE_ENABLED=true
-UPDATE_CHECK_INTERVAL=0 */6 * * *
-EOF
+UPDATE_CHECK_INTERVAL=0 */6 * * *"
+
+    if [ "$IS_ROOT" = true ]; then
+        echo "$ENV_CONTENT" > "$ENV_FILE"
+        # If we have a non-root service user, set proper ownership
+        if [ "$SERVICE_USER" != "root" ]; then
+            chown "$SERVICE_USER:$SERVICE_USER" "$ENV_FILE"
+        fi
+    elif [ "$SERVICE_USER" != "$(whoami)" ]; then
+        echo "$ENV_CONTENT" | sudo -u "$SERVICE_USER" tee "$ENV_FILE" > /dev/null
     else
-        # Create the file as the current user
-        tee "$ENV_FILE" > /dev/null <<EOF
-# KagamiMe Environment Configuration
-# Generated on $(date)
-
-# Discord Bot Configuration
-DISCORD_TOKEN=$DISCORD_TOKEN
-CLIENT_ID=$CLIENT_ID
-GUILD_ID=$GUILD_ID
-NOTIFY_CHANNEL_ID=$NOTIFY_CHANNEL_ID
-OWNER_ID=$OWNER_ID
-
-# Multi-API Fact-Checking Configuration
-OPENAI_API_KEY=$OPENAI_API_KEY
-CLAIMBUSTER_API_KEY=$CLAIMBUSTER_API_KEY
-GOOGLE_FACTCHECK_API_KEY=$GOOGLE_FACTCHECK_API_KEY
-
-# Admin Configuration
-ADMIN_ROLE_ID=$ADMIN_ROLE_ID
-
-# Database Configuration
-DATABASE_PATH=data/kagamime.db
-
-# Bot Configuration
-BOT_NAME=KagamiMe
-BOT_PREFIX=!
-VERSION=v0.4.2
-
-# Cron Settings
-RSS_CHECK_INTERVAL=*/30 * * * *
-DIGEST_TIME=0 8 * * *
-
-# Update Settings
-AUTO_UPDATE_ENABLED=true
-UPDATE_CHECK_INTERVAL=0 */6 * * *
-EOF
+        echo "$ENV_CONTENT" > "$ENV_FILE"
     fi
 }
 
@@ -401,7 +409,6 @@ main() {
         exit 0
     fi
     
-    check_root
     check_ubuntu_version
     install_dependencies
     install_nodejs
