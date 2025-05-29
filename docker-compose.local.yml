@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  kagamime:
+    build:
+      context: .
+      dockerfile: local-dev.dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run start
