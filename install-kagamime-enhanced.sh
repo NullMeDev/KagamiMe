@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# KagamiMe (鏡眼) Enhanced Installation Script
+# KagamiMe (KagamiMe) Enhanced Installation Script
 # Ubuntu 24.04 Compatible - Automated Setup with Style
-# Made with 💜 by NullMeDev
+# Made with <3 by NullMeDev
 
 set -e
 
@@ -30,8 +30,8 @@ show_ascii_art() {
     echo "╠╩╗  ╠═╣  ║ ╦  ╠═╣  ║║║ ║ ║║║ ║╣ "
     echo "╩ ╩  ╩ ╩  ╚═╝  ╩ ╩  ╩ ╩ ╩ ╩ ╩ ╚═╝"
     echo -e "${NC}"
-    echo -e "${PURPLE}        Made with 💜 by NullMeDev${NC}"
-    echo -e "${CYAN}        The best fake-news fighter (鏡眼)${NC}"
+    echo -e "${PURPLE}        Made with <3 by NullMeDev${NC}"
+    echo -e "${CYAN}        The best fake-news fighter (KagamiMe)${NC}"
     echo ""
 }
 
@@ -163,7 +163,7 @@ configure_environment() {
     
     ENV_FILE="$INSTALL_DIR/.env"
     
-    echo -e "${BOLD}${PURPLE}🎌 KagamiMe Configuration Setup${NC}"
+    echo -e "${BOLD}${PURPLE}[+] KagamiMe Configuration Setup${NC}"
     echo "Please provide the following information:"
     echo ""
     
@@ -397,27 +397,27 @@ verify_installation() {
 # Installation summary
 show_summary() {
     echo ""
-    echo -e "${BOLD}${BRIGHT_PURPLE}🎌 KagamiMe Installation Complete! 🎌${NC}"
+    echo -e "${BOLD}${BRIGHT_PURPLE}[+] KagamiMe Installation Complete! [+]${NC}"
     echo ""
-    echo -e "${GREEN}✅ Repository cloned and configured${NC}"
-    echo -e "${GREEN}✅ Dependencies installed${NC}"
-    echo -e "${GREEN}✅ Environment configured${NC}"
-    echo -e "${GREEN}✅ Database initialized${NC}"
-    echo -e "${GREEN}✅ Systemd service setup${NC}"
-    echo -e "${GREEN}✅ Version tracking enabled (v0.4.2)${NC}"
-    echo -e "${GREEN}✅ Auto-update system configured${NC}"
+    echo -e "${GREEN}[+] Repository cloned and configured${NC}"
+    echo -e "${GREEN}[+] Dependencies installed${NC}"
+    echo -e "${GREEN}[+] Environment configured${NC}"
+    echo -e "${GREEN}[+] Database initialized${NC}"
+    echo -e "${GREEN}[+] Systemd service setup${NC}"
+    echo -e "${GREEN}[+] Version tracking enabled (v0.4.2)${NC}"
+    echo -e "${GREEN}[+] Auto-update system configured${NC}"
     echo ""
-    echo -e "${BOLD}${CYAN}🚀 Quick Start Commands:${NC}"
+    echo -e "${BOLD}${CYAN}[>] Quick Start Commands:${NC}"
     echo -e "${PURPLE}  kagamime-start${NC}     - Start KagamiMe"
     echo -e "${PURPLE}  kagamime-status${NC}    - Check status"
     echo -e "${PURPLE}  kagamime-logs${NC}      - View live logs"
     echo -e "${PURPLE}  kagamime-restart${NC}   - Restart bot"
     echo ""
-    echo -e "${BOLD}${YELLOW}⚡ Ready to Start:${NC}"
+    echo -e "${BOLD}${YELLOW}[!] Ready to Start:${NC}"
     echo -e "${CYAN}  sudo systemctl start kagamime-bot${NC}"
     echo ""
-    echo -e "${PURPLE}Made with 💜 by NullMeDev${NC}"
-    echo -e "${CYAN}Your anime-inspired Discord sentinel awaits! (鏡眼)${NC}"
+    echo -e "${PURPLE}Made with <3 by NullMeDev${NC}"
+    echo -e "${CYAN}Your anime-inspired Discord sentinel awaits! (KagamiMe)${NC}"
 }
 
 # Main installation function
