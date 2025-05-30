@@ -365,8 +365,7 @@ async function handleFactCheckCommand(message: Message, args: string[]) {
                 {
                     name: '🔬 API Results',
                     value: result.results.map(r => {
-                        const icon = r.source === 'openai' ? '🤖' : 
-                                   r.source === 'claimbuster' ? '🔬' : 
+                        const icon = r.source === 'claimbuster' ? '🔬' : 
                                    r.source === 'google' ? '🌐' : '❓';
                         return `${icon} **${r.source.toUpperCase()}:** ${r.verdict} (${(r.confidence * 100).toFixed(0)}%)`;
                     }).join('\n'),
@@ -581,6 +580,12 @@ process.on('SIGTERM', async () => {
 });
 
 // Login to Discord
-client.login(process.env.DISCORD_TOKEN);
+if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    console.log('🔧 Running in development/test mode - Discord connection bypassed');
+    console.log('✅ Bot initialized without connecting to Discord');
+} else {
+    console.log('🔌 Connecting to Discord...');
+    client.login(process.env.DISCORD_TOKEN);
+}
 
 export { client, db };
