@@ -1,72 +1,19 @@
 "use strict";
 // Multi-API Fact Checker for KagamiMe
-// Integrates OpenAI, ClaimBuster, and Google Fact Check APIs
+// Integrates ClaimBuster and Google Fact Check APIs
 // Made with 💜 by NullMeDev
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MultiAPIFactChecker = void 0;
-const openaiClient_js_1 = require("./openaiClient.js");
 const axios_1 = __importDefault(require("axios"));
 class MultiAPIFactChecker {
     constructor() {
-        this.openaiApiKey = process.env.OPENAI_API_KEY || '';
         this.claimbusterApiKey = process.env.CLAIMBUSTER_API_KEY || '';
-        this.googleApiKey = process.env.GOOGLE_FACTCHECK_API_KEY || '';
+        this.googleApiKey = process.env.GOOGLE_API_KEY || '';
     }
-    /**
-     * Check a claim using OpenAI GPT for fact verification
-     */
-    async checkWithOpenAI(claim) {
-        try {
-            if (!this.openaiApiKey) {
-                throw new Error('OpenAI API key not configured');
-            }
-            const prompt = `As a fact-checking expert, analyze this claim and provide a verdict:
-
-"${claim}"
-
-Provide your response in this exact JSON format:
-{
-    "verdict": "true|false|mixed|unverified",
-    "confidence": 0.0-1.0,
-    "explanation": "Detailed explanation of your analysis",
-    "sources": ["source1", "source2"]
-}
-
-Be thorough, objective, and cite reliable sources when possible.`;
-            const openaiClient = (0, openaiClient_js_1.getOpenAI)();
-            const completion = await openaiClient.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.3,
-                max_tokens: 500
-            });
-            const response = completion.choices[0]?.message?.content;
-            if (!response) {
-                throw new Error('No response from OpenAI');
-            }
-            const parsed = JSON.parse(response);
-            return {
-                source: 'openai',
-                verdict: parsed.verdict,
-                confidence: parsed.confidence,
-                explanation: parsed.explanation,
-                sources: parsed.sources || []
-            };
-        }
-        catch (error) {
-            console.error('OpenAI fact-check error:', error);
-            return {
-                source: 'openai',
-                verdict: 'error',
-                confidence: 0,
-                explanation: `OpenAI check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                sources: []
-            };
-        }
-    }
+    // OpenAI integration has been removed
     /**
      * Check a claim using ClaimBuster API
      */
@@ -227,9 +174,6 @@ Be thorough, objective, and cite reliable sources when possible.`;
         const results = [];
         // Run checks in parallel for speed
         const promises = [];
-        if (this.openaiApiKey) {
-            promises.push(this.checkWithOpenAI(claim));
-        }
         if (this.claimbusterApiKey && useAllAPIs) {
             promises.push(this.checkWithClaimBuster(claim));
         }
@@ -314,9 +258,8 @@ Be thorough, objective, and cite reliable sources when possible.`;
         summary += `🤝 **API Consensus:** ${consensusText}\n\n`;
         summary += `**Individual Results:**\n`;
         results.forEach((result, index) => {
-            const icon = result.source === 'openai' ? '🤖' :
-                result.source === 'claimbuster' ? '🔬' :
-                    result.source === 'google' ? '🌐' : '❓';
+            const icon = result.source === 'claimbuster' ? '🔬' :
+                result.source === 'google' ? '🌐' : '❓';
             const resultVerdict = result.verdict || 'error';
             const resultSource = result.source || 'unknown';
             summary += `${icon} **${resultSource.toUpperCase()}:** ${resultVerdict.toUpperCase()} (${(result.confidence * 100).toFixed(1)}%)\n`;
@@ -328,20 +271,16 @@ Be thorough, objective, and cite reliable sources when possible.`;
      * Quick fact-check using only the fastest/most reliable API
      */
     async quickCheck(claim) {
-        // Use OpenAI for quick checks as it's most reliable
-        if (this.openaiApiKey) {
-            return await this.checkWithOpenAI(claim);
-        }
-        // Fallback to Google if OpenAI not available
+        // Use Google for quick checks as primary option
         if (this.googleApiKey) {
             return await this.checkWithGoogle(claim);
         }
-        // Last resort - ClaimBuster
+        // Fallback to ClaimBuster
         if (this.claimbusterApiKey) {
             return await this.checkWithClaimBuster(claim);
         }
         return {
-            source: 'openai',
+            source: 'google',
             verdict: 'error',
             confidence: 0,
             explanation: 'No fact-checking APIs are configured',
@@ -353,7 +292,6 @@ Be thorough, objective, and cite reliable sources when possible.`;
      */
     getAPIStatus() {
         return {
-            openai: !!this.openaiApiKey,
             claimbuster: !!this.claimbusterApiKey,
             google: !!this.googleApiKey
         };

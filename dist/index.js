@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.openai = exports.db = exports.client = void 0;
+exports.db = exports.client = void 0;
 const discord_js_1 = require("discord.js");
 const dotenv_1 = __importDefault(require("dotenv"));
 const database_1 = require("./database");
@@ -14,7 +14,6 @@ const settingsManager_1 = require("./utils/settingsManager");
 const serverCommands_1 = require("./utils/serverCommands");
 const multiAPIFactChecker_1 = require("./utils/multiAPIFactChecker");
 const autoUpdateSystem_1 = require("./utils/autoUpdateSystem");
-const openai_1 = __importDefault(require("openai"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const promises_1 = __importDefault(require("fs/promises"));
 // Load environment variables
@@ -30,11 +29,6 @@ async function getVersion() {
         return '0.4.2';
     }
 }
-// Initialize OpenAI
-const openai = new openai_1.default({
-    apiKey: process.env.OPENAI_API_KEY
-});
-exports.openai = openai;
 // Initialize database and utilities
 const db = new database_1.Database(process.env.DATABASE_PATH);
 exports.db = db;
@@ -281,34 +275,17 @@ async function handleAskCommand(message, args) {
         if (message.channel.type === 0) { // Text channel
             await message.channel.sendTyping();
         }
-        const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are KagamiMe (鏡眼), a sovereign anime-inspired digital sentinel. You are knowledgeable, helpful, and have a slightly formal but friendly tone. Keep responses concise and informative.'
-                },
-                {
-                    role: 'user',
-                    content: question
-                }
-            ],
-            max_tokens: 500,
-            temperature: 0.7
-        });
-        const aiReply = response.choices[0]?.message?.content || 'I apologize, but I could not generate a response.';
-        await message.reply(`🤖 **KagamiMe responds:**\n${aiReply}`);
-        await db.logEvent('ai_query', {
+        // OpenAI integration has been removed
+        await message.reply('🤖 **KagamiMe responds:**\nI\'m sorry, but AI-powered responses have been disabled in this version. Please check the documentation for more information.');
+        await db.logEvent('ai_query_disabled', {
             question,
-            response: aiReply,
-            user: message.author.tag,
-            model: 'gpt-3.5-turbo'
+            user: message.author.tag
         });
     }
     catch (error) {
-        console.error('OpenAI error:', error);
-        await message.reply('❌ I encountered an error while processing your question. Please try again later.');
-        await db.logEvent('ai_error', {
+        console.error('Error in ask command:', error);
+        await message.reply('❌ I encountered an error while processing your request. Please try again later.');
+        await db.logEvent('command_error', {
             question,
             error: error instanceof Error ? error.message : String(error),
             user: message.author.tag
@@ -358,9 +335,8 @@ async function handleFactCheckCommand(message, args) {
                 {
                     name: '🔬 API Results',
                     value: result.results.map(r => {
-                        const icon = r.source === 'openai' ? '🤖' :
-                            r.source === 'claimbuster' ? '🔬' :
-                                r.source === 'google' ? '🌐' : '❓';
+                        const icon = r.source === 'claimbuster' ? '🔬' :
+                            r.source === 'google' ? '🌐' : '❓';
                         return `${icon} **${r.source.toUpperCase()}:** ${r.verdict} (${(r.confidence * 100).toFixed(0)}%)`;
                     }).join('\n'),
                     inline: false
@@ -550,5 +526,12 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 // Login to Discord
-client.login(process.env.DISCORD_TOKEN);
+if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    console.log('🔧 Running in development/test mode - Discord connection bypassed');
+    console.log('✅ Bot initialized without connecting to Discord');
+}
+else {
+    console.log('🔌 Connecting to Discord...');
+    client.login(process.env.DISCORD_TOKEN);
+}
 //# sourceMappingURL=index.js.map

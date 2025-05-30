@@ -1,5 +1,5 @@
 export interface FactCheckResult {
-    source: 'openai' | 'claimbuster' | 'google';
+    source: 'claimbuster' | 'google';
     verdict: 'true' | 'false' | 'mixed' | 'unverified' | 'error';
     confidence: number;
     explanation: string;
@@ -15,14 +15,9 @@ export interface MultiAPIResult {
     summary: string;
 }
 export declare class MultiAPIFactChecker {
-    private openaiApiKey;
     private claimbusterApiKey;
     private googleApiKey;
     constructor();
-    /**
-     * Check a claim using OpenAI GPT for fact verification
-     */
-    checkWithOpenAI(claim: string): Promise<FactCheckResult>;
     /**
      * Check a claim using ClaimBuster API
      */
