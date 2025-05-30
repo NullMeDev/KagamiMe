@@ -39,11 +39,18 @@ const factChecker = new multiAPIFactChecker_1.MultiAPIFactChecker();
 const adminCommands = new adminCommands_1.AdminCommands(db, rssFetcher, articleFetcher, settingsManager);
 const serverCommands = new serverCommands_1.ServerCommands(db);
 // Create Discord client
+// NOTE: The MessageContent intent is a privileged intent that must be enabled in the Discord Developer Portal.
+// If you're seeing "Used disallowed intents" error, you have two options:
+// 1. RECOMMENDED: Enable the MESSAGE CONTENT intent in the Discord Developer Portal for your bot
+//    Go to https://discord.com/developers/applications, select your bot, go to "Bot" tab,
+//    scroll down to "Privileged Gateway Intents" and enable "MESSAGE CONTENT INTENT"
+// 2. TEMPORARY WORKAROUND: Remove the MessageContent intent (current approach), but this will break
+//    functionality that requires reading message content
 const client = new discord_js_1.Client({
     intents: [
         discord_js_1.GatewayIntentBits.Guilds,
         discord_js_1.GatewayIntentBits.GuildMessages,
-        discord_js_1.GatewayIntentBits.MessageContent,
+        // GatewayIntentBits.MessageContent, // Temporarily removed to fix "Used disallowed intents" error
     ],
 });
 exports.client = client;
