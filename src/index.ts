@@ -8,7 +8,6 @@ import { SettingsManager } from './utils/settingsManager';
 import { ServerCommands } from './utils/serverCommands';
 import { MultiAPIFactChecker } from './utils/multiAPIFactChecker';
 import { AutoUpdateSystem } from './utils/autoUpdateSystem';
-import OpenAI from 'openai';
 import cron from 'node-cron';
 import fs from 'fs/promises';
 
@@ -25,11 +24,6 @@ async function getVersion(): Promise<string> {
         return '0.4.2';
     }
 }
-
-// Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
 
 // Initialize database and utilities
 const db = new Database(process.env.DATABASE_PATH);
@@ -300,37 +294,18 @@ async function handleAskCommand(message: Message, args: string[]) {
             await (message.channel as TextChannel).sendTyping();
         }
         
-        const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are KagamiMe (鏡眼), a sovereign anime-inspired digital sentinel. You are knowledgeable, helpful, and have a slightly formal but friendly tone. Keep responses concise and informative.'
-                },
-                {
-                    role: 'user',
-                    content: question
-                }
-            ],
-            max_tokens: 500,
-            temperature: 0.7
-        });
+        // OpenAI integration has been removed
+        await message.reply('🤖 **KagamiMe responds:**\nI\'m sorry, but AI-powered responses have been disabled in this version. Please check the documentation for more information.');
         
-        const aiReply = response.choices[0]?.message?.content || 'I apologize, but I could not generate a response.';
-        
-        await message.reply(`🤖 **KagamiMe responds:**\n${aiReply}`);
-        
-        await db.logEvent('ai_query', { 
-            question, 
-            response: aiReply, 
-            user: message.author.tag,
-            model: 'gpt-3.5-turbo'
+        await db.logEvent('ai_query_disabled', { 
+            question,
+            user: message.author.tag
         });
         
     } catch (error) {
-        console.error('OpenAI error:', error);
-        await message.reply('❌ I encountered an error while processing your question. Please try again later.');
-        await db.logEvent('ai_error', { 
+        console.error('Error in ask command:', error);
+        await message.reply('❌ I encountered an error while processing your request. Please try again later.');
+        await db.logEvent('command_error', { 
             question, 
             error: error instanceof Error ? error.message : String(error),
             user: message.author.tag 
@@ -608,4 +583,4 @@ process.on('SIGTERM', async () => {
 // Login to Discord
 client.login(process.env.DISCORD_TOKEN);
 
-export { client, db, openai };
+export { client, db };

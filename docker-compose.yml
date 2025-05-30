@@ -1,1 +1,71 @@
+version: '3.8'
 
+services:
+  kagamime:
+    # Build from local Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Image name and tag for the built image
+    image: kagamime-dev:latest
+    
+    # Container name for easier reference
+    container_name: kagamime-dev
+    
+    # Add Node.js debugging to the container
+    # This allows for attaching a debugger to the Node.js process
+    command: >
+      node --inspect=0.0.0.0:9229 dist/index.js
+    
+    # Development environment configuration
+    environment:
+      # Set NODE_ENV to development
+      - NODE_ENV=development
+      # Enable Node.js debugging
+      - DEBUG=true
+    
+    # Load environment variables from .env file
+    env_file:
+      - .env
+    
+    # Volume mounts for development:
+    # - Mount source code for live editing
+    # - Mount dist directory for TypeScript compilation output
+    # - Mount data directory for persistent database
+    # - Mount node_modules as anonymous volume to use container's deps
+    volumes:
+      - ./src:/app/src
+      - ./dist:/app/dist
+      - ./data:/app/data
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./.env:/app/.env
+      - node_modules:/app/node_modules
+    
+    # Expose debugging port
+    ports:
+      - "9229:9229"
+    
+    # Restart policy - always restart unless stopped manually
+    # This is good for development as the container will restart if it crashes
+    restart: unless-stopped
+    
+    # Healthcheck to monitor container health
+    # This will check if the application is responding every 30 seconds
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Set additional container labels
+    labels:
+      - "com.kagamime.description=KagamiMe Discord Bot (Development)"
+      - "com.kagamime.environment=development"
+
+# Define named volumes
+volumes:
+  node_modules:

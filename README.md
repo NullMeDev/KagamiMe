@@ -1,3 +1,4 @@
+
 # 🔥 KagamiMe (鏡眼)
 
 > **Your sovereign, anime-inspired sentinel on the digital horizon**
@@ -6,13 +7,13 @@
 [![Discord.js](https://img.shields.io/badge/Discord.js-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.js.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
-KagamiMe is an advanced Discord bot that harvests news articles, monitors RSS feeds, performs multi-API fact-checks, and delivers automated daily digests. Built with TypeScript, it features intelligent caching, admin controls, and comprehensive news management.
+KagamiMe is an advanced Discord bot that harvests news articles, monitors RSS feeds, performs fact-checks using multiple verification services, and delivers automated daily digests. Built with TypeScript, it features intelligent caching, admin controls, and comprehensive news management.
 
 ## ✨ **Features**
 
 ### 🤖 **Core Functionality**
 - **RSS Feed Monitoring** - Automated fetching from 11+ default sources
-- **Multi-API Fact-Checking** - Cross-referenced verification from multiple services
+- **Multi-API Fact-Checking** - Cross-referenced verification using Google Fact Check and ClaimBuster
 - **News Aggregation** - Smart article collection and deduplication
 - **Daily Digests** - Automated morning news summaries
 - **Web Scraping** - Article content extraction from any URL
@@ -40,13 +41,25 @@ KagamiMe is an advanced Discord bot that harvests news articles, monitors RSS fe
 - **Network**: Internet access for RSS fetching and API calls
 
 ### **Installation**
+
+**Option 1: Quick Installation Script**
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd KagamiMe
+
+# Run the installation script (requires sudo)
+sudo ./install.sh
+```
+
+**Option 2: Manual Installation**
 ```bash
 # Clone repository
 git clone <your-repo-url>
 cd KagamiMe
 
 # Install dependencies
-npm install
+npm ci
 
 # Configure environment
 cp .env.sample .env
@@ -61,14 +74,17 @@ npm start
 ```bash
 # Required configuration
 DISCORD_TOKEN=your_discord_bot_token_here
-GOOGLE_API_KEY=your_google_api_key_here
-NOTIFY_CHANNEL_ID=discord_channel_id_for_notifications
-BOT_OWNER_ID=your_discord_user_id
-ADMIN_ROLE_ID=admin_role_id_in_your_server
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_GUILD_ID=your_discord_guild_id
+DISCORD_CHANNEL_ID=discord_channel_id_for_notifications
+OWNER_ID=your_discord_user_id
 DATABASE_PATH=./data/kagamime.db
 
-# Optional configuration
+# Fact-checking APIs
+GOOGLE_API_KEY=your_google_api_key_here
 CLAIMBUSTER_API_KEY=your_claimbuster_api_key_here
+
+# Optional configuration
 FETCH_INTERVAL_MINUTES=30
 DAILY_DIGEST_TIME=09:00
 ```
@@ -84,6 +100,7 @@ DAILY_DIGEST_TIME=09:00
 !kagami              - Show KagamiMe help
 !kagami pull         - Manually trigger RSS feed fetch
 !kagami latest       - Show latest news articles
+!fact <claim>        - Fact-check a statement
 !kagami check <claim> - Fact-check a statement
 !kagami analyze <url> - Extract and verify claims from article
 ```
@@ -122,7 +139,7 @@ KagamiMe (鏡眼)
 │   └── events            - Activity logging
 ├── RSS System (rss-parser)
 ├── Web Scraping (cheerio + axios)  
-├── Fact-Checking (multi-API)
+├── Fact-Checking (ClaimBuster + Google)
 ├── Cron Jobs (node-cron)
 ├── Admin System (RBAC)
 └── Settings Management
@@ -284,7 +301,8 @@ See [IMPROVEMENTS-AND-REMOVALS.md](IMPROVEMENTS-AND-REMOVALS.md) for detailed en
 ## 📝 **Changelog**
 
 ### **Recent Updates**
-- **v2.1.0** - Multi-API fact checking system, removed OpenAI dependency
+- **v2.2.0** - Removed OpenAI connectivity, simplified installation process
+- **v2.1.0** - Multi-API fact checking system
 - **v2.0.0** - Enhanced architecture, improved documentation, Ubuntu 24.04 support
 - **v1.5.0** - Advanced RSS monitoring with 11+ default sources
 - **v1.4.0** - SQLite database optimization and intelligent caching
@@ -309,7 +327,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**🎌 Built with TypeScript • Powered by Multi-API Fact Checking • Inspired by Anime**
+**🎌 Built with TypeScript • Powered by Google & ClaimBuster Fact Checking • Inspired by Anime**
 
 *KagamiMe (鏡眼) - Your Digital Sentinel*
 
