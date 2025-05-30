@@ -34,6 +34,9 @@ export class AdminCommands {
             case 'togglerss':
                 await this.toggleRSSFeed(message, args.slice(1));
                 break;
+            case 'cleanup':
+                await this.cleanupFeeds(message, args.slice(1));
+                break;
             case 'addarticle':
                 await this.addArticle(message, args.slice(1));
                 break;
@@ -378,7 +381,8 @@ export class AdminCommands {
                            '`!admin removerss <id>` - Remove RSS feed\n' +
                            '`!admin listrss` - List all RSS feeds\n' +
                            '`!admin togglerss <id> <true|false>` - Enable/disable feed\n' +
-                           '`!admin setinterval <id> <minutes>` - Set fetch interval',
+                           '`!admin setinterval <id> <minutes>` - Set fetch interval\n' +
+                           '`!admin cleanup [--dry-run] [--force]` - Clean up dead RSS feeds',
                     inline: false
                 },
                 {
@@ -398,5 +402,76 @@ export class AdminCommands {
         };
 
         await message.reply({ embeds: [embed] });
+    }
+
+    private async cleanupFeeds(message: Message, args: string[]): Promise<void> {
+        if (!requireAdmin(message)) return;
+        
+        // Parse arguments
+        const dryRun = args.includes('--dry-run') || args.includes('-d');
+        const force = args.includes('--force') || args.includes('-f');
+        
+        try {
+            await message.reply('🧹 **Starting RSS feed cleanup...**\n' +
+                'Checking for dead or inactive feeds. This may take a moment...');
+            
+            if (dryRun) {
+                // Only identify dead feeds without disabling them
+                const feeds = await this.db.getAllRSSFeeds();
+                let deadFeedsCount = 0;
+                let inactiveFeeds = [];
+                
+                for (const feed of feeds) {
+                    // Test the feed
+                    const testResult = await this.rssFetcher.testFeed(feed.url);
+                    if (!testResult.success) {
+                        deadFeedsCount++;
+                        inactiveFeeds.push({
+                            id: feed.id,
+                            name: feed.name,
+                            reason: testResult.error
+                        });
+                    }
+                }
+                
+                // Report findings
+                if (deadFeedsCount === 0) {
+                    await message.reply('✅ **No dead RSS feeds found!**\n' +
+                        'All your feeds appear to be working correctly.');
+                } else {
+                    const feedList = inactiveFeeds.map(feed => 
+                        `**${feed.id}.** ${feed.name}\n   Reason: ${feed.reason}`
+                    ).join('\n');
+                    
+                    await message.reply(`⚠️ **Found ${deadFeedsCount} potentially dead RSS feeds:**\n\n` +
+                        `${feedList}\n\n` +
+                        'To clean up these feeds, run: `!admin cleanup` without the `--dry-run` flag.');
+                }
+            } else {
+                // Actually perform the cleanup
+                const results = await this.rssFetcher.cleanDeadFeeds(
+                    force ? 1 : 3,  // Lower threshold if force flag is used
+                    force ? 3 : 7   // Lower threshold if force flag is used
+                );
+                
+                if (results.cleaned === 0) {
+                    await message.reply('✅ **No dead RSS feeds found to clean up!**\n' +
+                        'All your feeds appear to be working correctly.');
+                } else {
+                    await message.reply(`🧹 **RSS feed cleanup complete!**\n` +
+                        `Disabled ${results.cleaned} out of ${results.total} feeds that were dead or inactive.\n` +
+                        'Use `!admin listrss` to see the current status of all feeds.');
+                    
+                    await this.db.logEvent('admin_cleanup_feeds', {
+                        cleaned: results.cleaned,
+                        total: results.total,
+                        force: force,
+                        admin: message.author.tag
+                    });
+                }
+            }
+        } catch (error) {
+            await message.reply(`❌ Cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 }

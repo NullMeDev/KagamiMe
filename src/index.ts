@@ -35,11 +35,18 @@ const adminCommands = new AdminCommands(db, rssFetcher, articleFetcher, settings
 const serverCommands = new ServerCommands(db);
 
 // Create Discord client
+// NOTE: The MessageContent intent is a privileged intent that must be enabled in the Discord Developer Portal.
+// If you're seeing "Used disallowed intents" error, you have two options:
+// 1. RECOMMENDED: Enable the MESSAGE CONTENT intent in the Discord Developer Portal for your bot
+//    Go to https://discord.com/developers/applications, select your bot, go to "Bot" tab,
+//    scroll down to "Privileged Gateway Intents" and enable "MESSAGE CONTENT INTENT"
+// 2. TEMPORARY WORKAROUND: Remove the MessageContent intent (current approach), but this will break
+//    functionality that requires reading message content
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
+        // GatewayIntentBits.MessageContent, // Temporarily removed to fix "Used disallowed intents" error
     ],
 });
 
@@ -410,8 +417,10 @@ async function handleFactCheckCommand(message: Message, args: string[]) {
 
 // RSS Cron Job
 function startRSSCronJob() {
-    const interval = process.env.FETCH_INTERVAL_MINUTES || '30';
-    const cronPattern = `*/${interval} * * * *`; // Every X minutes
+    // Check if a custom cron pattern is specified
+    const cronPattern = process.env.RSS_CHECK_INTERVAL || `*/${process.env.FETCH_INTERVAL_MINUTES || '30'} * * * *`;
+    
+    console.log(`🕒 RSS cron job scheduled with pattern: ${cronPattern}`);
     
     cron.schedule(cronPattern, async () => {
         console.log('⏰ RSS cron job triggered');
@@ -430,13 +439,17 @@ function startRSSCronJob() {
         try {
             const results = await rssFetcher.fetchAllFeeds();
             console.log(`📊 RSS fetch results: ${results.success} successful, ${results.errors.length} errors`);
+            
+            // Log details about any errors
+            if (results.errors.length > 0) {
+                console.log('⚠️ RSS fetch errors:');
+                results.errors.forEach(error => console.log(`  - ${error}`));
+            }
         } catch (error) {
             console.error('❌ RSS cron job error:', error);
             await db.logEvent('rss_cron_error', { error: error instanceof Error ? error.message : String(error) });
         }
     });
-    
-    console.log(`🕒 RSS cron job scheduled: every ${interval} minutes`);
 }
 
 // Daily digest cron job

@@ -18,9 +18,19 @@ export class RSSFetcher {
         console.log('🔄 Starting RSS feed fetch cycle...');
         const feeds = await this.db.getActiveRSSFeeds();
         const results = { success: 0, errors: [] as string[] };
-
+        
+        const now = new Date();
+        
         for (const feed of feeds) {
             try {
+                // Check if this feed is due for update based on its individual interval
+                const shouldUpdate = await this.shouldUpdateFeed(feed);
+                
+                if (!shouldUpdate) {
+                    console.log(`⏭️ Skipping ${feed.name}: Not due for update yet`);
+                    continue;
+                }
+                
                 await this.fetchSingleFeed(feed.id, feed.url, feed.name);
                 results.success++;
                 
@@ -124,6 +134,98 @@ export class RSSFetcher {
 
     async searchItems(query: string, limit: number = 10): Promise<any[]> {
         return await this.db.searchRSSItems(query, limit);
+    }
+
+    // Helper method to determine if a feed should be updated based on its interval
+    async shouldUpdateFeed(feed: any): Promise<boolean> {
+        // If no last_fetched timestamp, it should be updated
+        if (!feed.last_fetched) {
+            return true;
+        }
+        
+        const now = new Date();
+        const lastFetched = new Date(feed.last_fetched);
+        const intervalMinutes = feed.fetch_interval_minutes || 30;
+        
+        // Calculate time difference in milliseconds
+        const diffMs = now.getTime() - lastFetched.getTime();
+        const diffMinutes = Math.floor(diffMs / 60000);
+        
+        // Return true if the elapsed time is greater than the interval
+        return diffMinutes >= intervalMinutes;
+    }
+
+    // Test if an RSS feed is accessible and valid
+    async testFeed(url: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const feed = await this.parser.parseURL(url);
+            return { 
+                success: true
+            };
+        } catch (error) {
+            return { 
+                success: false, 
+                error: error instanceof Error ? error.message : String(error) 
+            };
+        }
+    }
+
+    // Identify and clean up dead RSS feeds
+    async cleanDeadFeeds(maxFailures = 3, daysInactive = 7): Promise<{ cleaned: number; total: number }> {
+        console.log('🧹 Starting RSS feed cleanup...');
+        
+        // Get all feeds including inactive ones
+        const feeds = await this.db.all('SELECT * FROM rss_feeds');
+        let cleaned = 0;
+        
+        for (const feed of feeds) {
+            try {
+                // Check last successful fetch
+                const lastSuccess = feed.last_fetched ? new Date(feed.last_fetched) : null;
+                const now = new Date();
+                
+                // Calculate days since last successful fetch
+                const daysSinceLastFetch = lastSuccess ? 
+                    Math.floor((now.getTime() - lastSuccess.getTime()) / (1000 * 60 * 60 * 24)) : 
+                    daysInactive + 1; // If never fetched, treat as inactive
+                
+                // Get count of recent errors
+                const errors = await this.db.all(
+                    `SELECT COUNT(*) as count FROM events 
+                     WHERE event_type = 'rss_fetch_error' 
+                     AND event_data LIKE ? 
+                     AND timestamp > datetime('now', '-7 days')`,
+                    [`%"feedId":${feed.id}%`]
+                );
+                
+                const errorCount = errors[0]?.count || 0;
+                
+                // Mark as dead if: too many errors OR inactive for too long
+                if (errorCount >= maxFailures || daysSinceLastFetch >= daysInactive) {
+                    console.log(`🚫 Marking feed as inactive: ${feed.name} (Errors: ${errorCount}, Days inactive: ${daysSinceLastFetch})`);
+                    
+                    // Test if the feed is actually accessible
+                    const testResult = await this.testFeed(feed.url);
+                    
+                    if (!testResult.success) {
+                        // Disable the feed
+                        await this.db.toggleRSSFeed(feed.id, false);
+                        cleaned++;
+                        
+                        await this.db.logEvent('rss_feed_disabled', {
+                            feedId: feed.id,
+                            feedName: feed.name,
+                            reason: testResult.error || `Inactive for ${daysSinceLastFetch} days with ${errorCount} errors`
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(`Error processing feed ${feed.name}:`, error);
+            }
+        }
+        
+        console.log(`🧹 RSS feed cleanup complete: ${cleaned}/${feeds.length} feeds disabled`);
+        return { cleaned, total: feeds.length };
     }
 }
 
