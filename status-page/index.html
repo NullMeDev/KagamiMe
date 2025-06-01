@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KagamiMe Status</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>KagamiMe Status</h1>
+            <p class="subtitle">カガミメ System Monitor</p>
+        </header>
+        
+        <main>
+            <div class="status-card main-status">
+                <i class="fas fa-robot status-icon"></i>
+                <h2>Bot Status</h2>
+                <div class="status-indicator" id="botStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking...</span>
+                </div>
+                <p class="uptime" id="uptime">Uptime: Checking...</p>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-card">
+                    <i class="fas fa-rss"></i>
+                    <h3>RSS Feeds</h3>
+                    <div id="rssStatus">
+                        <p>Active Feeds: <span id="activeFeeds">-</span></p>
+                        <p>Last Update: <span id="lastUpdate">-</span></p>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <i class="fas fa-database"></i>
+                    <h3>Database</h3>
+                    <div id="dbStatus">
+                        <p>Status: <span id="dbConnectionStatus">-</span></p>
+                        <p>Items: <span id="dbItems">-</span></p>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <i class="fas fa-memory"></i>
+                    <h3>System</h3>
+                    <div id="systemStatus">
+                        <p>Memory: <span id="memoryUsage">-</span></p>
+                        <p>CPU: <span id="cpuUsage">-</span></p>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <i class="fas fa-clock"></i>
+                    <h3>Tasks</h3>
+                    <div id="tasksStatus">
+                        <p>RSS Check: <span id="rssCheckStatus">-</span></p>
+                        <p>Next Update: <span id="nextUpdate">-</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-card incidents">
+                <h3>Recent Events</h3>
+                <div id="eventsList">
+                    <p>Loading events...</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Last updated: <span id="lastChecked">-</span></p>
+            <p>KagamiMe v0.4.2 | <a href="https://github.com/yourusername/kagamime" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+    <script src="js/status.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+name = "kagamime-api"
+main = "status.js"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = []
+
+[[kv_namespaces]]
+binding = "BOT_STATUS"
+id = "your-kv-namespace-id"

@@ -31,3 +31,21 @@ coverage/
 *.swp
 *.swo
 .DS_Store
+
+# Development backups and patches
+*.bak
+*.patch
+*.orig
+*.fix
+.env.backup
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Debug and temporary files
+kagami_functions.txt
+
+# Node modules
+node_modules/
