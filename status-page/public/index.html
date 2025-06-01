@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time status page for NullMeDev Discord bot - Check system health, incidents, and performance metrics.">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="NullMeDev Status - NullMeDev">
+    <meta property="og:description" content="Real-time status page for NullMeDev Discord bot - Check system health, incidents, and performance metrics.">
+    <meta property="og:image" content="/assets/social/og-image.svg">
+    <meta property="og:url" content="https://status.nullme.lol">
+    <meta name="theme-color" content="#1F2937">
+    <title>NullMeDev Status - NullMeDev</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <nav class="bg-gray-800 border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold">NullMeDev</span>
+                </div>
+                <div>
+                    <a href="https://nullme.lol" class="text-gray-300 hover:text-white px-3 py-2">Main Site</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold mb-4">NullMeDev Status</h1>
+            <p class="text-gray-400">Real-time monitoring dashboard</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Main Status Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Bot Status</h2>
+                    <div id="statusIndicator" class="h-3 w-3 rounded-full bg-gray-500"></div>
+                </div>
+                <p id="statusText" class="text-gray-400">Checking status...</p>
+                <p id="uptimeText" class="text-sm text-gray-500 mt-2">Uptime: Checking...</p>
+            </div>
+
+            <!-- System Stats Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">System Stats</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-400">CPU Usage</span>
+                            <span id="cpuUsage" class="text-gray-300">--</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div id="cpuBar" class="bg-blue-500 rounded-full h-2" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-400">Memory Usage</span>
+                            <span id="memoryUsage" class="text-gray-300">--</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div id="memoryBar" class="bg-purple-500 rounded-full h-2" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Events Card -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">Recent Events</h2>
+                <div id="eventsList" class="space-y-3 max-h-40 overflow-y-auto">
+                    <p class="text-gray-400">Loading events...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Incident History -->
+        <div class="mt-12">
+            <h2 class="text-2xl font-semibold mb-6">Incident History</h2>
+            <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                <div id="incidentsList" class="divide-y divide-gray-700">
+                    <p class="p-4 text-gray-400">Loading incident history...</p>
+                </div>
+            </div>
+        </div>
+        <div class="text-center text-sm text-gray-500 mt-8">
+            <p>Last updated: <span id="lastUpdated">Checking...</span></p>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 mt-12 py-6 border-t border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center">
+                <p class="text-gray-400">&copy; 2025 NullMeDev. All rights reserved.</p>
+                <div class="flex space-x-6">
+                    <a href="https://nullme.lol" class="text-gray-400 hover:text-white">Website</a>
+                    <a href="https://discord.gg/your-invite" class="text-gray-400 hover:text-white">Discord</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = 'https://api.nullme.lol'; // Update with your API endpoint
+        const UPDATE_INTERVAL = 30000; // 30 seconds
+        let lastUpdateTime = null;
+        let errorCount = 0;
+        const MAX_ERRORS = 3;
+
+        function updateLastUpdated() {
+            if (lastUpdateTime) {
+                document.getElementById('lastUpdated').textContent = new Date(lastUpdateTime).toLocaleString();
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('statusIndicator').className = 'h-3 w-3 rounded-full bg-red-500';
+            document.getElementById('statusText').textContent = message;
+            document.getElementById('uptimeText').textContent = 'Unable to fetch status';
+        }
+
+        async function updateStatus() {
+            try {
+                errorCount = 0;
+                const response = await fetch(`${API_URL}/status`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                lastUpdateTime = new Date();
+                updateLastUpdated();
+                
+                // Update status indicator
+                const statusIndicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                const uptimeText = document.getElementById('uptimeText');
+                
+                if (data.status === 'online') {
+                    statusIndicator.className = 'h-3 w-3 rounded-full bg-green-500 pulse';
+                    statusText.textContent = 'Operational';
+                } else {
+                    statusIndicator.className = 'h-3 w-3 rounded-full bg-red-500';
+                    statusText.textContent = 'Offline';
+                }
+                
+                uptimeText.textContent = `Uptime: ${data.uptime || 'N/A'}`;
+                
+                // Update system stats with animations
+                const cpuUsage = document.getElementById('cpuUsage');
+                const cpuBar = document.getElementById('cpuBar');
+                const memoryUsage = document.getElementById('memoryUsage');
+                const memoryBar = document.getElementById('memoryBar');
+                
+                cpuUsage.textContent = `${data.cpuUsage || 0}%`;
+                cpuBar.style.transition = 'width 0.5s ease-in-out';
+                cpuBar.style.width = `${data.cpuUsage || 0}%`;
+                
+                memoryUsage.textContent = `${data.memoryUsage || 0}%`;
+                memoryBar.style.transition = 'width 0.5s ease-in-out';
+                memoryBar.style.width = `${data.memoryUsage || 0}%`;
+                
+                // Update events with fade animation
+                const eventsList = document.getElementById('eventsList');
+                if (data.events && data.events.length > 0) {
+                    eventsList.style.opacity = '0';
+                    setTimeout(() => {
+                        eventsList.innerHTML = data.events
+                            .map(event => `
+                                <div class="text-sm">
+                                    <p class="text-gray-300">${event.description}</p>
+                                    <p class="text-gray-500 text-xs">${new Date(event.timestamp).toLocaleString()}</p>
+                                </div>
+                            `)
+                            .join('')
+                        eventsList.style.opacity = '1';
+                    }, 200);
+                }
+                
+                // Update incidents
+                const incidentsList = document.getElementById('incidentsList');
+                if (data.incidents && data.incidents.length > 0) {
+                    incidentsList.innerHTML = data.incidents
+                        .map(incident => `
+                            <div class="p-4 border-l-4 ${incident.resolved ? 'border-green-500' : 'border-red-500'} bg-opacity-10 ${incident.resolved ? 'bg-green-500' : 'bg-red-500'} transition-colors duration-300">
+                                <div class="flex items-center">
+                                    <span class="h-2 w-2 rounded-full ${incident.resolved ? 'bg-green-500' : 'bg-red-500'} mr-2"></span>
+                                    <h3 class="font-medium">${incident.title}</h3>
+                                </div>
+                                <p class="text-gray-400 mt-1">${incident.description}</p>
+                                <p class="text-gray-500 text-sm mt-2">${new Date(incident.timestamp).toLocaleString()}</p>
+                            </div>
+                        `)
+                        .join('')
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                errorCount++;
+                if (errorCount >= MAX_ERRORS) {
+                    showError('Unable to connect to status API');
+                }
+            }
+        }
+
+        // Initial update
+        updateStatus();
+
+        // Set up periodic updates
+        setInterval(updateStatus, UPDATE_INTERVAL);
+    </script>
+</body>
+</html>

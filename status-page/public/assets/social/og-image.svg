@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+    <rect width="1200" height="630" fill="#1F2937"/>
+    <text x="600" y="300" font-family="Inter, Arial" font-size="64" fill="#E5E7EB" text-anchor="middle" font-weight="bold">Noxhime Status</text>
+    <text x="600" y="380" font-family="Inter, Arial" font-size="32" fill="#9CA3AF" text-anchor="middle">Real-time Discord Bot Monitoring</text>
+    <text x="600" y="580" font-family="Inter, Arial" font-size="24" fill="#6B7280" text-anchor="middle">NullMeDev</text>
+</svg>
