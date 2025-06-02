@@ -323,15 +323,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Cheerio** - Server-side DOM manipulation
 - **Google Fact Check Tools** - Fact verification API
 
----
-
-<div align="center">
-
-**🎌 Built with TypeScript • Powered by Google & ClaimBuster Fact Checking • Inspired by Anime**
-
-*KagamiMe (鏡眼) - Your Digital Sentinel*
-
-[Documentation](docs/) • [Improvements](IMPROVEMENTS-AND-REMOVALS.md) • [Support](https://github.com/your-repo/issues)
-
-</div>
+<p align="center">
+Contributions are welcome, either request here, or email me at null@nullme.dev! Please feel free to submit a pull request.
+</p>
+<p align="center">
+Consider donating at https://ko-fi.com/NullMeDev
+</p>
+<p align="center">
+Made With &#x1F49C by NullMeDev.</p>
 
